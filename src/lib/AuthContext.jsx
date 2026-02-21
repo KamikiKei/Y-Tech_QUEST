@@ -42,27 +42,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   // プレイヤー登録（最初の一回）
-  const registerPlayer = async (nickname) => {
-    const newSessionId = crypto.randomUUID();
-    const newPlayer = {
-      nickname,
-      session_id: newSessionId,
-      completed_missions: [],
-      started_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('players')
-      .insert(newPlayer)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    localStorage.setItem('rally_session_id', newSessionId);
-    setPlayer(data);
-    return data;
+  // registerPlayer 関数内の修正
+const registerPlayer = async (nickname) => {
+  const newSessionId = crypto.randomUUID();
+  const newPlayer = {
+    nickname,
+    session_id: newSessionId,
+    completed_missions: [],
+    started_at: new Date().toISOString()
   };
+
+  // 💡 ここでも RLS が効くため、自分の session_id を持ったデータのみ insert 可能
+  const { data, error } = await supabase
+    .from('players')
+    .insert(newPlayer)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // キー名を 'jamquest_session' に統一
+  localStorage.setItem('jamquest_session', newSessionId);
+  setPlayer(data);
+  return data;
+};
 
   return (
     <AuthContext.Provider value={{ 

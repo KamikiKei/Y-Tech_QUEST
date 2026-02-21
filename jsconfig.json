@@ -19,7 +19,7 @@
     "src/**/*",           // src配下すべてを対象にする（これが一番確実！）
     "src/**/*.js",
     "src/**/*.jsx"
-  ],
+, "vite-env.d.ts"  ],
   "exclude": [
     "node_modules",
     "dist",

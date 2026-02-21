@@ -35,48 +35,34 @@ export default function Dashboard() {
   }, []);
 
   const loadData = async () => {
-    const sessionId = localStorage.getItem('jamquest_session');
-    if (!sessionId) {
-      navigate(createPageUrl('Entry'));
-      return;
-    }
+  // セッションIDの取得先を統一（localStorage のキーに注意）
+  const sessionId = localStorage.getItem('jamquest_session'); 
+  if (!sessionId) {
+    navigate(createPageUrl('Entry'));
+    return;
+  }
 
-    try {
-      const { data: players, error: pError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('session_id', sessionId);
+  try {
+    // 💡 修正ポイント：
+    // クライアント側で重複チェックをして update を投げるのではなく、
+    // 「現在の最新状態を安全に取得する」RPCを1回呼ぶだけにする。
+    const { data, error } = await supabase.rpc('get_player_status_secure', {
+      p_session_id: sessionId
+    });
 
-      const { data: missionList, error: mError } = await supabase
-        .from('missions')
-        .select('*')
-        .order('order', { ascending: true });
+    if (error) throw error;
 
-      if (pError || mError) throw pError || mError;
-
-      if (!players || players.length === 0) {
-        navigate(createPageUrl('Entry'));
-        return;
-      }
-
-      const currentPlayer = players[0];
-      const missionIds = missionList.map(m => m.id);
-      const uniqueCompletedMissions = [...new Set((currentPlayer.completed_missions || []).filter(id => missionIds.includes(id)))];
-
-      if (uniqueCompletedMissions.length !== (currentPlayer.completed_missions || []).length) {
-        await supabase.from('players').update({ completed_missions: uniqueCompletedMissions }).eq('id', currentPlayer.id);
-        currentPlayer.completed_missions = uniqueCompletedMissions;
-      }
-
-      setPlayer(currentPlayer);
-      setMissions(missionList);
-      if (currentPlayer.completed_at) setShowCompletion(true);
-    } catch (err) {
-      console.error('データ読み込みエラー:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // data には player 情報と missions 一覧を結合して返させるのが効率的
+    setPlayer(data.player);
+    setMissions(data.missions);
+    
+    if (data.player.completed_at) setShowCompletion(true);
+  } catch (err) {
+    console.error('データ同期エラー:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   /**
    * 圧倒的管理者によるセキュアなスキャン処理
