@@ -44,6 +44,8 @@ export default function Entry() {
     setIsLoading(true);
     try {
       const sessionId = crypto.randomUUID();
+      
+      // プロの視点：エラーをしっかりキャッチしてユーザーに伝える
       const { error } = await base44
         .from('players')
         .insert({
@@ -53,11 +55,16 @@ export default function Entry() {
           started_at: new Date().toISOString(),
         });
 
-      if (error) throw error;
+      if (error) {
+        // ここでエラー内容を表示するようにします
+        alert(`ミッションの初期化に失敗しました: ${error.message}`);
+        throw error;
+      }
+
       localStorage.setItem('jamquest_session', sessionId);
       navigate(createPageUrl('Dashboard'));
     } catch (err) {
-      console.error(err);
+      console.error("Start Error:", err);
       setIsLoading(false);
     }
   };
