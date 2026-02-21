@@ -38,37 +38,39 @@ export default function Entry() {
     }
   };
 
-  const handleStart = async () => {
-    if (!nickname.trim()) return;
+  // src/pages/Entry.jsx の handleStart を修正
+const handleStart = async () => {
+  if (!nickname.trim()) return;
+  
+  setIsLoading(true);
+  try {
+    const sessionId = crypto.randomUUID();
     
-    setIsLoading(true);
-    try {
-      const sessionId = crypto.randomUUID();
-      
-      // プロの視点：エラーをしっかりキャッチしてユーザーに伝える
-      const { error } = await base44
-        .from('players')
-        .insert({
-          nickname: nickname.trim(),
-          session_id: sessionId,
-          completed_missions: [],
-          started_at: new Date().toISOString(),
-        });
+    // 💡 圧倒的修正：通信する「前」に鍵を確定させる
+    localStorage.setItem('jamquest_session', sessionId);
 
-      if (error) {
-        // ここでエラー内容を表示するようにします
-        alert(`ミッションの初期化に失敗しました: ${error.message}`);
-        throw error;
-      }
+    const { error } = await base44
+      .from('players')
+      .insert({
+        nickname: nickname.trim(),
+        session_id: sessionId,
+        completed_missions: [],
+        started_at: new Date().toISOString(),
+      });
 
-      localStorage.setItem('jamquest_session', sessionId);
-      navigate(createPageUrl('Dashboard'));
-    } catch (err) {
-      console.error("Start Error:", err);
-      setIsLoading(false);
+    if (error) {
+      // 失敗した場合は証拠（LocalStorage）を消してやり直し
+      localStorage.removeItem('jamquest_session');
+      alert(`ミッションの初期化に失敗しました: ${error.message}`);
+      throw error;
     }
-  };
 
+    navigate(createPageUrl('Dashboard'));
+  } catch (err) {
+    console.error("Start Error:", err);
+    setIsLoading(false);
+  }
+};
   return (
     /* h-screen, flex, items-center, justify-center で「画面の正方形のど真ん中」を確保 */
     <div 

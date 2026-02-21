@@ -1,31 +1,48 @@
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 
-const UserNotRegisteredError = () => {
+/**
+ * システムエラー（未登録エラー等）を表示するコンポーネント
+ * * @param {Object} props
+ * @param {string} props.message - 表示するエラーメッセージ
+ */
+const UseNotRegisteredError = ({ message }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg border border-slate-100">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-orange-100">
-            <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-4">Access Restricted</h1>
-          <p className="text-slate-600 mb-8">
-            You are not registered to use this application. Please contact the app administrator to request access.
-          </p>
-          <div className="p-4 bg-slate-50 rounded-md text-sm text-slate-600">
-            <p>If you believe this is an error, you can:</p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Verify you are logged in with the correct account</li>
-              <li>Contact the app administrator for access</li>
-              <li>Try logging out and back in again</li>
-            </ul>
-          </div>
+    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6 text-white">
+      {/* 背景の装飾 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/10 blur-[100px] rounded-full" />
+      </div>
+
+      <div className="relative z-10 max-w-md w-full bg-black/40 backdrop-blur-xl border border-red-500/30 rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-500/10 mb-6 border border-red-500/20">
+          <AlertCircle className="w-10 h-10 text-red-500 animate-pulse" />
         </div>
+        
+        <h2 className="text-2xl font-black italic mb-4 uppercase tracking-tighter text-red-500">
+          Critical Error
+        </h2>
+        
+        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 mb-8">
+          <p className="text-gray-300 font-mono text-xs leading-relaxed break-words">
+            {/* ここで渡された message を表示します */}
+            {message || 'SYSTEM_INITIALIZATION_FAILED: No detailed message available.'}
+          </p>
+        </div>
+
+        <button 
+          onClick={() => window.location.href = '/'}
+          className="w-full py-4 bg-transparent border border-red-500/50 hover:bg-red-500/10 text-red-500 transition-all duration-300 rounded-xl font-black italic text-sm tracking-widest uppercase"
+        >
+          Re-initialize System
+        </button>
+
+        <p className="mt-6 text-[10px] text-gray-600 font-mono uppercase tracking-[0.2em]">
+          Authority: Y-Tech Quest Administrator
+        </p>
       </div>
     </div>
   );
 };
 
-export default UserNotRegisteredError;
+export default UseNotRegisteredError;

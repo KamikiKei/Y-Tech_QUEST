@@ -78,14 +78,17 @@ export default function Dashboard() {
       });
 
       if (error) {
-        if (error.message.includes('INVALID_QR_CODE')) {
-          alert('無効なQRコードです');
-        } else {
-          console.error('RPC Error:', error);
-          alert('通信エラーが発生しました');
-        }
-        return;
+      if (error.message.includes('INVALID_QR_CODE')) {
+        alert('無効なQRコードです');
+      } else if (error.message.includes('INVALID_SESSION')) {
+        alert('セッションが切れました。再度ログインしてください');
+        navigate(createPageUrl('Entry'));
+      } else {
+        console.error('RPC Error:', error);
+        alert('通信エラーが発生しました');
       }
+      return;
+    }
 
       // 同期と演出
       await loadData(); 

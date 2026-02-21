@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 
+// プロジェクト全体でこのキーに命を預ける
+const SESSION_KEY = 'jamquest_session';
+
 export const AuthProvider = ({ children }) => {
   const [player, setPlayer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,57 +18,71 @@ export const AuthProvider = ({ children }) => {
   const initializePlayer = async () => {
     try {
       setIsLoading(true);
-      // 1. ローカルストレージから session_id を取得
-      let sessionId = localStorage.getItem('rally_session_id');
+      setAuthError(null);
+
+      // 1. 統一キーでセッション取得
+      let sessionId = localStorage.getItem(SESSION_KEY);
       
       if (sessionId) {
-        // 2. すでにIDがあれば、Supabaseからプレイヤー情報を取得
+        // 2. 自分の session_id を持ったデータのみ RLS で取得
         const { data, error } = await supabase
           .from('players')
           .select('*')
           .eq('session_id', sessionId)
-          .single();
+          .maybeSingle(); // 存在しない場合にエラーを吐かせない
 
         if (data) {
           setPlayer(data);
         } else {
-          // IDはあるがDBにない場合は一度リセット
-          localStorage.removeItem('rally_session_id');
+          // DBにない場合はゾンビセッションとして破棄
+          localStorage.removeItem(SESSION_KEY);
+          setPlayer(null);
         }
+      } else {
+        setPlayer(null);
       }
     } catch (error) {
       console.error('Player initialization failed:', error);
-      setAuthError(error.message);
+      setAuthError(`初期化失敗: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // プレイヤー登録（最初の一回）
-  // registerPlayer 関数内の修正
-const registerPlayer = async (nickname) => {
-  const newSessionId = crypto.randomUUID();
-  const newPlayer = {
-    nickname,
-    session_id: newSessionId,
-    completed_missions: [],
-    started_at: new Date().toISOString()
+  /**
+   * プレイヤー登録
+   * 圧倒的管理者の流儀：先に鍵を確定させてから門を叩く
+   */
+  const registerPlayer = async (nickname) => {
+    const newSessionId = crypto.randomUUID();
+    
+    // 💡 重要：通信の「前」にセット。これで supabase.js の fetch が ID を拾える
+    localStorage.setItem(SESSION_KEY, newSessionId);
+
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .insert({
+          nickname: nickname.trim(),
+          session_id: newSessionId,
+          completed_missions: [],
+          started_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        localStorage.removeItem(SESSION_KEY);
+        throw error;
+      }
+
+      setPlayer(data);
+      return data;
+    } catch (error) {
+      localStorage.removeItem(SESSION_KEY);
+      throw error;
+    }
   };
-
-  // 💡 ここでも RLS が効くため、自分の session_id を持ったデータのみ insert 可能
-  const { data, error } = await supabase
-    .from('players')
-    .insert(newPlayer)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // キー名を 'jamquest_session' に統一
-  localStorage.setItem('jamquest_session', newSessionId);
-  setPlayer(data);
-  return data;
-};
 
   return (
     <AuthContext.Provider value={{ 
