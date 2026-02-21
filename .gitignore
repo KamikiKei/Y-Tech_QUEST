@@ -1,0 +1,31 @@
+# --- 環境変数 (セキュリティ上、絶対に共有しない) ---
+.env
+.env.*
+.env.local
+*.local
+
+# --- 依存ライブラリとビルド成果物 ---
+node_modules
+dist
+dist-ssr
+
+# --- ログファイル ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- エディタ・OS設定 ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db

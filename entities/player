@@ -1,0 +1,43 @@
+{
+  "name": "Player",
+  "type": "object",
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "description": "\u30d7\u30ec\u30a4\u30e4\u30fc\u306e\u30cb\u30c3\u30af\u30cd\u30fc\u30e0"
+    },
+    "completed_missions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "\u30af\u30ea\u30a2\u6e08\u307f\u30df\u30c3\u30b7\u30e7\u30f3\u306eID\u4e00\u89a7"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u53c2\u52a0\u958b\u59cb\u65e5\u6642"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u5168\u30df\u30c3\u30b7\u30e7\u30f3\u30af\u30ea\u30a2\u65e5\u6642"
+    },
+    "title": {
+      "type": "string",
+      "description": "\u7372\u5f97\u3057\u305f\u79f0\u53f7"
+    },
+    "message": {
+      "type": "string",
+      "description": "\u751f\u6210\u3055\u308c\u305f\u4e00\u8a00\u30e1\u30c3\u30bb\u30fc\u30b8"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "\u30d6\u30e9\u30a6\u30b6\u30bb\u30c3\u30b7\u30e7\u30f3\u8b58\u5225\u5b50"
+    }
+  },
+  "required": [
+    "nickname",
+    "session_id"
+  ]
+}
