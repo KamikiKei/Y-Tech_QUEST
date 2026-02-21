@@ -96,8 +96,54 @@ export default function Dashboard() {
 // Dashboard.jsx の handleQRScan 関数
 // Dashboard.jsx の handleQRScan 関数をこれに丸ごと差し替え
 const handleQRScan = async (qrCode) => {
-  if (!player || !missions.length) return;
+  // プレイヤー情報がない場合は中断
+  if (!player) return;
 
+  try {
+    // 1. サーバー側の関数(RPC)を呼び出し、QRコードの検証と更新を一度に行う
+    // これにより、フロントに正解データを持たせる必要がなくなります
+    const { data: result, error } = await supabase.rpc('complete_mission_secure', {
+      p_qr_code: qrCode,
+      p_player_id: player.id
+    });
+
+  if (error) {
+      if (error.message.includes('INVALID_QR_CODE')) {
+        alert('無効なQRコードです');
+      } else {
+        console.error('RPC Error:', error);
+        alert('通信エラーが発生しました');
+      }
+      return;
+    }
+
+    // 3. 成功したら最新のプレイヤーデータを再読み込み
+    // これにより、UI側の「クリア済みリスト」も最新の状態に同期されます
+    await loadData(); 
+    
+    // 4. クリア演出の実行
+    soundManager.playClear();
+
+    if (result.is_all_complete) {
+      setTimeout(() => setShowCompletion(true), 1000);
+    } else {
+      setClearedCount(result.completed_count);
+      setShowClearPopup(true);
+      
+      // 特定のクリア数（例: 5個）でシークレット演出を出す場合
+      if (result.completed_count === 5 && !secretMissionShown) {
+        setTimeout(() => {
+          soundManager.playSecretUnlock();
+          setShowSecretMission(true);
+          setSecretMissionShown(true);
+        }, 2800);
+      }
+    }
+  } catch (err) {
+    console.error('System Error:', err);
+    alert('重大なシステムエラーが発生しました');
+    }
+    
   const mission = missions.find(m => m.qr_code === qrCode);
   if (!mission) {
     alert('無効なQRコードです');

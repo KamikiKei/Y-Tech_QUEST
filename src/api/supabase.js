@@ -1,35 +1,33 @@
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
-/**
- * ミッション（サークル）一覧を取得する
- */
-export const fetchMissions = async () => {
-  const { data, error } = await supabase
-    .from('missions')
-    .select('*')
-    .order('order', { ascending: true });
+// /** @type {any} */ という JSDoc を使うことで、
+// TypeScript の型チェックをこの一行だけ無効化（any化）できます。
+/** @type {any} */
+const meta = import.meta;
+const env = meta.env || process.env;
 
-  if (error) {
-    console.error('ミッションの取得に失敗:', error);
-    return [];
-  }
-  return data;
-};
+const supabaseUrl = env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY;
 
-/**
- * プレイヤー情報を保存または更新する
- * session_id が一致すれば上書き（upsert）します
- */
-export const savePlayer = async (playerData) => {
-  const { data, error } = await supabase
-    .from('players')
-    .upsert(playerData, { onConflict: 'session_id' })
-    .select()
-    .single();
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("Supabase environment variables are missing!");
+}
 
-  if (error) {
-    console.error('プレイヤー情報の保存に失敗:', error);
-    throw error;
-  }
-  return data;
-};
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: (url, options) => {
+      const sessionId = typeof window !== 'undefined' 
+        ? localStorage.getItem('jamquest_session') || '' 
+        : '';
+      
+      const newOptions = {
+        ...options,
+        headers: {
+          ...options?.headers,
+          'x-session-id': sessionId,
+        },
+      };
+      return fetch(url, newOptions);
+    },
+  },
+});
