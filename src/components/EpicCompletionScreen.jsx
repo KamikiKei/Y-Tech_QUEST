@@ -414,9 +414,7 @@ export default function EpicCompletionScreen({ player, onClose }) {
 
     soundManager.playClick();
 
-    const text = `🎮 YT:JAM QUEST 全ミッションクリア！\n\n称号: ${player.title}\n「${player.message}」\n\n#YTJAMQUEST #テックサークル新歓`;
-
-    
+    const text = `🎮 Y-Tech QUEST 全ミッションクリア！\n\n称号: ${player.title}\n「${player.message}」\n\n#Y-Tech QUEST #南部コミセン合同新歓`;
 
     if (navigator.share) {
 

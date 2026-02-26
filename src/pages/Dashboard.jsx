@@ -29,6 +29,12 @@ export default function Dashboard() {
   const [secretMissionCompleted, setSecretMissionCompleted] = useState(false);
   const [secretMissionShown, setSecretMissionShown] = useState(false);
   const navigate = useNavigate();
+  const TITLES = [
+  { title: "LEGENDARY DECODER", message: "電子の海を統べる者。お前の解析に不可能はない。" },
+  { title: "NEON PHANTOM", message: "光の中に消え、影の中に現れる。実体なき英雄。" },
+  { title: "BINARY EMPEROR", message: "0と1の帝王。全ての論理回路はお前の前に跪く。" },
+  { title: "GHOST PROTOCOL", message: "存在しないはずの英雄。伝説の影を追え。" }
+];
 
   useEffect(() => {
     loadData();
@@ -78,24 +84,49 @@ export default function Dashboard() {
       });
 
       if (error) {
-      if (error.message.includes('INVALID_QR_CODE')) {
-        alert('無効なQRコードです');
-      } else if (error.message.includes('INVALID_SESSION')) {
-        alert('セッションが切れました。再度ログインしてください');
-        navigate(createPageUrl('Entry'));
-      } else {
-        console.error('RPC Error:', error);
-        alert('通信エラーが発生しました');
+        if (error.message.includes('INVALID_QR_CODE')) {
+          alert('無効なQRコードです');
+        } else if (error.message.includes('INVALID_SESSION')) {
+          alert('セッションが切れました。再度ログインしてください');
+          navigate(createPageUrl('Entry'));
+        } else {
+          console.error('RPC Error:', error);
+          alert('通信エラーが発生しました');
+        }
+        return;
       }
-      return;
-    }
 
-      // 同期と演出
+      // --- 称号ガチャロジックここから ---
+      if (result.is_all_complete && !player.title) {
+        const TITLES = [
+          { title: "GOD IN THE SHELL", message: "電子の海に魂を刻みし者。君の解析に不可能はない。" },
+          { title: "NEON PHANTOM", message: "光の中に消え、影の中に現れる。実体なきデジタル・ゴースト。" },
+          { title: "BINARY EMPEROR", message: "0と1を統べる帝王。全ての論理回路は君の前に跪く。" },
+          { title: "GHOST PROTOCOL", message: "存在しないはずの英雄。伝説の影を追う孤高のランナー。" },
+          { title: "CHROMATIC DRIFTER", message: "極彩色の境界を漂う者。君の軌跡がネオンを灯す。" },
+          { title: "SILICON SHAMAN", message: "シリコンに魂を吹き込む祈祷師。電子の啓示を体現せよ。" }
+        ];
+        
+        const selected = TITLES[Math.floor(Math.random() * TITLES.length)];
+        
+        // await を入れて確実に保存を待ってから loadData に進む
+        await supabase
+          .from('players')
+          .update({ 
+            title: selected.title, 
+            message: selected.message 
+          })
+          .eq('id', player.id);
+      }
+      // --- 称号ガチャロジックここまで ---
+
+      // 同期と演出 (称号が保存された後に同期するので EpicCompletionScreen に称号が渡る)
       await loadData(); 
       soundManager.playClear();
 
       if (result.is_all_complete) {
-        setTimeout(() => setShowCompletion(true), 1000);
+        // 演出の開始時間を少し調整（同期の完了を待つため1.2秒に）
+        setTimeout(() => setShowCompletion(true), 1200);
       } else {
         setClearedCount(result.completed_count);
         setShowClearPopup(true);
