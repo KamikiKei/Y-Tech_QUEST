@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scan, User, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase'; 
+import { getPlayer, updatePlayer } from '@/lib/storage';
+import { MISSIONS, resolveMissionByQR } from '@/lib/missions';
 import { createPageUrl } from '@/utils';
 import CyberBackground from '@/components/CyberBackground';
 import NeonButton from '@/components/NeonButton';
@@ -40,108 +41,69 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const loadData = async () => {
-  // セッションIDの取得先を統一（localStorage のキーに注意）
-  const sessionId = localStorage.getItem('jamquest_session'); 
-  if (!sessionId) {
-    navigate(createPageUrl('Entry'));
-    return;
-  }
-
-  try {
-    // 💡 修正ポイント：
-    // クライアント側で重複チェックをして update を投げるのではなく、
-    // 「現在の最新状態を安全に取得する」RPCを1回呼ぶだけにする。
-    const { data, error } = await supabase.rpc('get_player_status_secure', {
-      p_session_id: sessionId
-    });
-
-    if (error) throw error;
-
-    // data には player 情報と missions 一覧を結合して返させるのが効率的
-    setPlayer(data.player);
-    setMissions(data.missions);
-    
-    if (data.player.completed_at) setShowCompletion(true);
-  } catch (err) {
-    console.error('データ同期エラー:', err);
-  } finally {
+  const loadData = () => {
+    const storedPlayer = getPlayer();
+    if (!storedPlayer) {
+      navigate(createPageUrl('Entry'));
+      return;
+    }
+    setPlayer(storedPlayer);
+    setMissions(MISSIONS);
+    if (storedPlayer.completed_at) setShowCompletion(true);
     setLoading(false);
-  }
-};
+  };
 
-  /**
-   * 圧倒的管理者によるセキュアなスキャン処理
-   * サーバー側関数(RPC)にすべての判定を任せ、フロントエンドの不正操作を封殺します。
-   */
-  const handleQRScan = async (qrCode) => {
+  const handleQRScan = (qrCode) => {
     if (!player) return;
 
-    try {
-      const { data: result, error } = await supabase.rpc('complete_mission_secure', {
-        p_qr_code: qrCode,
-        p_player_id: player.id
-      });
+    const mission = resolveMissionByQR(qrCode);
+    if (!mission) {
+      alert('無効なQRコードです');
+      return;
+    }
 
-      if (error) {
-        if (error.message.includes('INVALID_QR_CODE')) {
-          alert('無効なQRコードです');
-        } else if (error.message.includes('INVALID_SESSION')) {
-          alert('セッションが切れました。再度ログインしてください');
-          navigate(createPageUrl('Entry'));
-        } else {
-          console.error('RPC Error:', error);
-          alert('通信エラーが発生しました');
-        }
-        return;
+    if (player.completed_missions.includes(mission.id)) {
+      return;
+    }
+
+    const newCompleted = [...player.completed_missions, mission.id];
+    const isAllComplete = newCompleted.length >= MISSIONS.length;
+
+    const patch = { completed_missions: newCompleted };
+
+    // --- 称号ガチャロジック ---
+    if (isAllComplete && !player.title) {
+      const TITLES = [
+        { title: "GOD IN THE SHELL",  message: "電子の海に魂を刻みし者。君の解析に不可能はない。" },
+        { title: "NEON PHANTOM",      message: "光の中に消え、影の中に現れる。実体なきデジタル・ゴースト。" },
+        { title: "BINARY EMPEROR",    message: "0と1を統べる帝王。全ての論理回路は君の前に跪く。" },
+        { title: "GHOST PROTOCOL",    message: "存在しないはずの英雄。伝説の影を追う孤高のランナー。" },
+        { title: "CHROMATIC DRIFTER", message: "極彩色の境界を漂う者。君の軌跡がネオンを灯す。" },
+        { title: "SILICON SHAMAN",    message: "シリコンに魂を吹き込む祈祷師。電子の啓示を体現せよ。" },
+      ];
+      const selected = TITLES[Math.floor(Math.random() * TITLES.length)];
+      patch.title = selected.title;
+      patch.message = selected.message;
+      patch.completed_at = new Date().toISOString();
+    }
+
+    const updatedPlayer = updatePlayer(patch);
+    setPlayer(updatedPlayer);
+    soundManager.playClear();
+
+    if (isAllComplete) {
+      setTimeout(() => setShowCompletion(true), 1200);
+    } else {
+      setClearedCount(newCompleted.length);
+      setShowClearPopup(true);
+
+      if (newCompleted.length === 5 && !secretMissionShown) {
+        setTimeout(() => {
+          soundManager.playSecretUnlock();
+          setShowSecretMission(true);
+          setSecretMissionShown(true);
+        }, 2800);
       }
-
-      // --- 称号ガチャロジックここから ---
-      if (result.is_all_complete && !player.title) {
-        const TITLES = [
-          { title: "GOD IN THE SHELL", message: "電子の海に魂を刻みし者。君の解析に不可能はない。" },
-          { title: "NEON PHANTOM", message: "光の中に消え、影の中に現れる。実体なきデジタル・ゴースト。" },
-          { title: "BINARY EMPEROR", message: "0と1を統べる帝王。全ての論理回路は君の前に跪く。" },
-          { title: "GHOST PROTOCOL", message: "存在しないはずの英雄。伝説の影を追う孤高のランナー。" },
-          { title: "CHROMATIC DRIFTER", message: "極彩色の境界を漂う者。君の軌跡がネオンを灯す。" },
-          { title: "SILICON SHAMAN", message: "シリコンに魂を吹き込む祈祷師。電子の啓示を体現せよ。" }
-        ];
-        
-        const selected = TITLES[Math.floor(Math.random() * TITLES.length)];
-        
-        // await を入れて確実に保存を待ってから loadData に進む
-        await supabase
-          .from('players')
-          .update({ 
-            title: selected.title, 
-            message: selected.message 
-          })
-          .eq('id', player.id);
-      }
-      // --- 称号ガチャロジックここまで ---
-
-      // 同期と演出 (称号が保存された後に同期するので EpicCompletionScreen に称号が渡る)
-      await loadData(); 
-      soundManager.playClear();
-
-      if (result.is_all_complete) {
-        // 演出の開始時間を少し調整（同期の完了を待つため1.2秒に）
-        setTimeout(() => setShowCompletion(true), 1200);
-      } else {
-        setClearedCount(result.completed_count);
-        setShowClearPopup(true);
-        
-        if (result.completed_count === 5 && !secretMissionShown) {
-          setTimeout(() => {
-            soundManager.playSecretUnlock();
-            setShowSecretMission(true);
-            setSecretMissionShown(true);
-          }, 2800);
-        }
-      }
-    } catch (err) {
-      console.error('System Error:', err);
-      alert('重大なシステムエラーが発生しました');
     }
   };
 

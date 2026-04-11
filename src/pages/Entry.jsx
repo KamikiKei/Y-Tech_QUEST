@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, ChevronRight, Terminal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-// ロジックのみSupabaseに差し替え、名前はbase44として扱う
-import { supabase as base44 } from '@/lib/supabase';
+import { getPlayer, savePlayer } from '@/lib/storage';
 import { createPageUrl } from '@/utils';
 import CyberBackground from '@/components/CyberBackground';
 import NeonButton from '@/components/NeonButton';
@@ -15,62 +14,28 @@ export default function Entry() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const sessionId = localStorage.getItem('jamquest_session');
-    if (sessionId) {
-      checkExistingPlayer(sessionId);
+    const existing = getPlayer();
+    if (existing) {
+      navigate(createPageUrl('Dashboard'));
     }
-    
     setTimeout(() => setShowInput(true), 1000);
   }, []);
 
-  const checkExistingPlayer = async (sessionId) => {
-    try {
-      const { data: players } = await base44
-        .from('players')
-        .select('*')
-        .eq('session_id', sessionId);
-
-      if (players && players.length > 0) {
-        navigate(createPageUrl('Dashboard'));
-      }
-    } catch (err) {
-      // Continue
-    }
-  };
-
-  // src/pages/Entry.jsx の handleStart を修正
-const handleStart = async () => {
-  if (!nickname.trim()) return;
-  
-  setIsLoading(true);
-  try {
-    const sessionId = crypto.randomUUID();
-    
-    // 💡 圧倒的修正：通信する「前」に鍵を確定させる
-    localStorage.setItem('jamquest_session', sessionId);
-
-    const { error } = await base44
-      .from('players')
-      .insert({
-        nickname: nickname.trim(),
-        session_id: sessionId,
-        completed_missions: [],
-        started_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      // 失敗した場合は証拠（LocalStorage）を消してやり直し
-      localStorage.removeItem('jamquest_session');
-      alert(`ミッションの初期化に失敗しました: ${error.message}`);
-      throw error;
-    }
-
+  const handleStart = () => {
+    if (!nickname.trim()) return;
+    setIsLoading(true);
+    const newPlayer = {
+      session_id: crypto.randomUUID(),
+      nickname: nickname.trim(),
+      completed_missions: [],
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      title: null,
+      message: null,
+    };
+    savePlayer(newPlayer);
     navigate(createPageUrl('Dashboard'));
-  } catch (err) {
-    console.error("Start Error:", err);
-    setIsLoading(false);
-  }
-};
+  };
   return (
     /* h-screen, flex, items-center, justify-center で「画面の正方形のど真ん中」を確保 */
     <div 

@@ -1,10 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getPlayer, savePlayer, clearPlayer } from '@/lib/storage';
 
 const AuthContext = createContext(null);
-
-// プロジェクト全体でこのキーに命を預ける
-const SESSION_KEY = 'jamquest_session';
 
 export const AuthProvider = ({ children }) => {
   const [player, setPlayer] = useState(null);
@@ -15,32 +12,12 @@ export const AuthProvider = ({ children }) => {
     initializePlayer();
   }, []);
 
-  const initializePlayer = async () => {
+  const initializePlayer = () => {
     try {
       setIsLoading(true);
       setAuthError(null);
-
-      // 1. 統一キーでセッション取得
-      let sessionId = localStorage.getItem(SESSION_KEY);
-      
-      if (sessionId) {
-        // 2. 自分の session_id を持ったデータのみ RLS で取得
-        const { data, error } = await supabase
-          .from('players')
-          .select('*')
-          .eq('session_id', sessionId)
-          .maybeSingle(); // 存在しない場合にエラーを吐かせない
-
-        if (data) {
-          setPlayer(data);
-        } else {
-          // DBにない場合はゾンビセッションとして破棄
-          localStorage.removeItem(SESSION_KEY);
-          setPlayer(null);
-        }
-      } else {
-        setPlayer(null);
-      }
+      const stored = getPlayer();
+      setPlayer(stored);
     } catch (error) {
       console.error('Player initialization failed:', error);
       setAuthError(`初期化失敗: ${error.message}`);
@@ -49,50 +26,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * プレイヤー登録
-   * 圧倒的管理者の流儀：先に鍵を確定させてから門を叩く
-   */
-  const registerPlayer = async (nickname) => {
-    const newSessionId = crypto.randomUUID();
-    
-    // 💡 重要：通信の「前」にセット。これで supabase.js の fetch が ID を拾える
-    localStorage.setItem(SESSION_KEY, newSessionId);
-
-    try {
-      const { data, error } = await supabase
-        .from('players')
-        .insert({
-          nickname: nickname.trim(),
-          session_id: newSessionId,
-          completed_missions: [],
-          started_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) {
-        localStorage.removeItem(SESSION_KEY);
-        throw error;
-      }
-
-      setPlayer(data);
-      return data;
-    } catch (error) {
-      localStorage.removeItem(SESSION_KEY);
-      throw error;
-    }
+  const registerPlayer = (nickname) => {
+    const newPlayer = {
+      session_id: crypto.randomUUID(),
+      nickname: nickname.trim(),
+      completed_missions: [],
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      title: null,
+      message: null,
+    };
+    savePlayer(newPlayer);
+    setPlayer(newPlayer);
+    return newPlayer;
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      player, 
+    <AuthContext.Provider value={{
+      player,
       setPlayer,
-      isAuthenticated: !!player, 
+      isAuthenticated: !!player,
       isLoading,
       authError,
       registerPlayer,
-      refreshPlayer: initializePlayer
+      refreshPlayer: initializePlayer,
     }}>
       {children}
     </AuthContext.Provider>
